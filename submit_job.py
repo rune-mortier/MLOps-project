@@ -17,7 +17,7 @@ SUBSCRIPTION_ID = "91a4d59e-f70a-4dfe-b8c0-38b9bef510a6"
 RESOURCE_GROUP  = "azure-ai"
 WORKSPACE_NAME  = "MLOps-project"
 
-COMPUTE_NAME    = "m5-mini-cluster"
+COMPUTE_NAME    = "m5-cluster"
 COMPUTE_SIZE    = "Standard_DS1_v2"   # 4 vCPU, 14GB RAM — gratis tier vriendelijk
 MIN_NODES       = 0                   # schaalt terug naar 0 na gebruik = geen kosten
 MAX_NODES       = 2
