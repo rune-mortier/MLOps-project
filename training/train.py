@@ -16,7 +16,6 @@ import pandas as pd
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 
-# ── Azure ML logging ────────────────────────────────────────────────────────
 try:
     import mlflow
     import mlflow.keras
@@ -24,7 +23,6 @@ try:
 except ImportError:
     MLFLOW = False
 
-# ── Keras / PyTorch backend ─────────────────────────────────────────────────
 os.environ["KERAS_BACKEND"] = "torch"
 import keras
 from keras.models import Sequential
@@ -33,10 +31,6 @@ from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
 import torch
 
-
-# ════════════════════════════════════════════════════════════════════════════
-# Config & argumenten
-# ════════════════════════════════════════════════════════════════════════════
 
 def parse_args():
     parser = argparse.ArgumentParser(description="M5 MLP + LSTM training")
@@ -52,6 +46,10 @@ def parse_args():
     parser.add_argument("--seq_len",     type=int,   default=14,
                         help="Vensterlengte voor LSTM")
     parser.add_argument("--seed",        type=int,   default=50)
+    parser.add_argument("--blob_conn_str", type=str, default=None,
+                        help="Azure Blob connection string")
+    parser.add_argument("--blob_container", type=str, default="m5data",
+                        help="Azure Blob container name")
     return parser.parse_args()
 
 
