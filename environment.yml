@@ -1,0 +1,15 @@
+name: m5-forecasting
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+    - keras>=3.0
+    - torch>=2.0
+    - pandas>=2.0
+    - numpy>=1.26
+    - scikit-learn>=1.4
+    - mlflow>=2.10
+    - azure-ai-ml>=1.13
