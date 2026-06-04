@@ -24,8 +24,8 @@ WORKSPACE_NAME  = "MLOps-project"
 # Compute cluster instellingen
 # ════════════════════════════════════════════════════════════════════════════
 
-COMPUTE_NAME    = "m5-cluster"
-COMPUTE_SIZE    = "Standard_DS3_v2"   # 4 vCPU, 14GB RAM — gratis tier vriendelijk
+COMPUTE_NAME    = "m5-mini-cluster"
+COMPUTE_SIZE    = "Standard_DS1_v2"   # 4 vCPU, 14GB RAM — gratis tier vriendelijk
 MIN_NODES       = 0                   # schaalt terug naar 0 na gebruik = geen kosten
 MAX_NODES       = 2
 
