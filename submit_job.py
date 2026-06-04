@@ -12,17 +12,10 @@ from azure.ai.ml import MLClient, command
 from azure.ai.ml.entities import Environment, AmlCompute
 from azure.identity import DefaultAzureCredential
 
-# ════════════════════════════════════════════════════════════════════════════
-# Azure ML connectie
-# ════════════════════════════════════════════════════════════════════════════
 
 SUBSCRIPTION_ID = "91a4d59e-f70a-4dfe-b8c0-38b9bef510a6"
 RESOURCE_GROUP  = "azure-ai"
 WORKSPACE_NAME  = "MLOps-project"
-
-# ════════════════════════════════════════════════════════════════════════════
-# Compute cluster instellingen
-# ════════════════════════════════════════════════════════════════════════════
 
 COMPUTE_NAME    = "m5-mini-cluster"
 COMPUTE_SIZE    = "Standard_DS1_v2"   # 4 vCPU, 14GB RAM — gratis tier vriendelijk
@@ -86,7 +79,6 @@ def get_or_create_environment(ml_client):
 def main():
     args = parse_args()
 
-    # ── Verbinding maken met Azure ML ────────────────────────────────────────
     print("→ Verbinding maken met Azure ML...")
     ml_client = MLClient(
         credential=DefaultAzureCredential(),
@@ -96,11 +88,9 @@ def main():
     )
     print(f"✓ Verbonden met workspace '{WORKSPACE_NAME}'")
 
-    # ── Compute & Environment ────────────────────────────────────────────────
     get_or_create_compute(ml_client)
     env = get_or_create_environment(ml_client)
 
-    # ── Blob connection string ───────────────────────────────────────────────
     import os
     blob_conn_str = args.blob_conn_str or os.environ.get("BLOB_CONN_STR", "")
     if not blob_conn_str:
@@ -108,11 +98,10 @@ def main():
         print("   Zet de BLOB_CONN_STR environment variable, of geef --blob_conn_str mee.")
         print("   De job wordt toch gesubmit — zorg dat data_dir 'csv/' al bestaat op de compute.\n")
 
-    # ── Job aanmaken ─────────────────────────────────────────────────────────
     command_str = (
         f"python training/train.py"
         f" --data_dir csv/"
-        f" --blob_conn_str '$BLOB_CONN_STR'"
+        f" --blob_conn_str $BLOB_CONN_STR"
         f" --blob_container {args.blob_container}"
         f" --output_dir outputs/"
         f" --sample_frac {args.sample_frac}"
@@ -133,7 +122,6 @@ def main():
         experiment_name="m5-forecasting",
     )
 
-    # ── Job submitten ─────────────────────────────────────────────────────────
     print("\n→ Job submitten naar Azure ML...")
     returned_job = ml_client.jobs.create_or_update(job)
 
