@@ -46,16 +46,13 @@ def parse_args():
     parser.add_argument("--seq_len",     type=int,   default=14,
                         help="Vensterlengte voor LSTM")
     parser.add_argument("--seed",        type=int,   default=50)
-    parser.add_argument("--blob_conn_str", type=str, default=None,
-                        help="Azure Blob connection string")
+    parser.add_argument("--blob_conn_str", type=str, 
+                    default=os.environ.get("BLOB_CONN_STR", None))
     parser.add_argument("--blob_container", type=str, default="m5data",
-                        help="Azure Blob container name")
+                    help="Naam van de Azure Blob container")
     return parser.parse_args()
 
 
-# ════════════════════════════════════════════════════════════════════════════
-# Reproducibiliteit
-# ════════════════════════════════════════════════════════════════════════════
 
 def set_seeds(seed):
     random.seed(seed)
@@ -68,9 +65,6 @@ def set_seeds(seed):
         pass
 
 
-# ════════════════════════════════════════════════════════════════════════════
-# 1. Data inladen
-# ════════════════════════════════════════════════════════════════════════════
 
 def load_data(data_dir):
     print("\n── Data inladen ──────────────────────────────────────────────")
@@ -83,10 +77,6 @@ def load_data(data_dir):
     print(f"Prices   : {prices.shape}")
     return cal, train_val, prices
 
-
-# ════════════════════════════════════════════════════════════════════════════
-# 2. Feature engineering
-# ════════════════════════════════════════════════════════════════════════════
 
 LAG_DAYS     = [7, 14, 28, 35]
 ROLL_WINDOWS = [7, 28]
