@@ -99,17 +99,16 @@ def main():
         print("   De job wordt toch gesubmit — zorg dat data_dir 'csv/' al bestaat op de compute.\n")
 
     command_str = (
-        f"python training/train.py"
-        f" --data_dir csv/"
-        f" --blob_conn_str $BLOB_CONN_STR"
-        f" --blob_container {args.blob_container}"
-        f" --output_dir outputs/"
-        f" --sample_frac {args.sample_frac}"
-        f" --epochs {args.epochs}"
-        f" --batch_mlp {args.batch_mlp}"
-        f" --batch_lstm {args.batch_lstm}"
-        f" --seq_len {args.seq_len}"
-    )
+    f"python training/train.py"
+    f" --data_dir csv/"
+    f" --blob_container {args.blob_container}"
+    f" --output_dir outputs/"
+    f" --sample_frac {args.sample_frac}"
+    f" --epochs {args.epochs}"
+    f" --batch_mlp {args.batch_mlp}"
+    f" --batch_lstm {args.batch_lstm}"
+    f" --seq_len {args.seq_len}"
+)
 
     job = command(
         code=".",                        # upload de hele projectmap
