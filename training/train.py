@@ -1,11 +1,3 @@
-"""
-M5 Forecasting — Azure ML Training Script
-MLP + LSTM op Walmart dagelijkse verkoopdata
-
-Gebruik:
-    python train.py --data_dir <pad_naar_csvs> [--sample_frac 0.05] [--epochs 50]
-"""
-
 import os
 import argparse
 import random
@@ -22,6 +14,40 @@ try:
     MLFLOW = True
 except ImportError:
     MLFLOW = False
+
+try:
+    from azure.storage.blob import BlobServiceClient
+    AZURE_STORAGE = True
+except ImportError:
+    AZURE_STORAGE = False
+
+CSV_FILES = [
+    "calendar.csv",
+    "sales_train_validation.csv",
+    "sales_train_evaluation.csv",
+    "sell_prices.csv",
+    "sample_submission.csv",
+]
+
+def download_data_from_blob(conn_str, container_name, dest_dir):
+    if not AZURE_STORAGE:
+        raise ImportError("azure-storage-blob niet geinstalleerd.")
+    os.makedirs(dest_dir, exist_ok=True)
+    print(f"\n-- Data downloaden van Azure Blob (container: {container_name}) --")
+    client = BlobServiceClient.from_connection_string(conn_str)
+    container = client.get_container_client(container_name)
+    for filename in CSV_FILES:
+        dest_path = os.path.join(dest_dir, filename)
+        if os.path.exists(dest_path):
+            print(f"  v {filename} (al aanwezig, overgeslagen)")
+            continue
+        print(f"  downloading {filename} ...", end=" ", flush=True)
+        blob_client = container.get_blob_client(filename)
+        with open(dest_path, "wb") as f:
+            f.write(blob_client.download_blob().readall())
+        size_mb = os.path.getsize(dest_path) / 1_048_576
+        print(f"{size_mb:.1f} MB")
+    print("Download klaar.\n")
 
 os.environ["KERAS_BACKEND"] = "torch"
 import keras
@@ -349,7 +375,13 @@ def main():
             "seed":        args.seed,
         })
 
-    # 1. Data
+    # 1. Data — download van Azure Blob indien conn_str beschikbaar
+    if args.blob_conn_str:
+        download_data_from_blob(
+            conn_str=args.blob_conn_str,
+            container_name=args.blob_container,
+            dest_dir=args.data_dir,
+        )
     cal, train_val, prices = load_data(args.data_dir)
 
     # 2. Features
