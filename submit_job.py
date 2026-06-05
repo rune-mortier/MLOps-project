@@ -17,8 +17,8 @@ SUBSCRIPTION_ID = "91a4d59e-f70a-4dfe-b8c0-38b9bef510a6"
 RESOURCE_GROUP  = "azure-ai"
 WORKSPACE_NAME  = "MLOps-project"
 
-COMPUTE_NAME = "m5-cluster-v3"
-COMPUTE_SIZE = "Standard_D4s_v3"
+COMPUTE_NAME = "m5-cluster"
+COMPUTE_SIZE = "Standard_DS1_v2"
 MIN_NODES       = 0                   # schaalt terug naar 0 na gebruik = geen kosten
 MAX_NODES       = 2
 
@@ -99,25 +99,23 @@ def main():
         print("   De job wordt toch gesubmit — zorg dat data_dir 'csv/' al bestaat op de compute.\n")
 
     command_str = (
-    f"python training/train.py"
-    f" --data_dir csv/"
-    f" --blob_container {args.blob_container}"
-    f" --output_dir outputs/"
-    f" --sample_frac {args.sample_frac}"
-    f" --epochs {args.epochs}"
-    f" --batch_mlp {args.batch_mlp}"
-    f" --batch_lstm {args.batch_lstm}"
-    f" --seq_len {args.seq_len}"
-)
+        f"python training/train.py"
+        f" --data_dir csv/"
+        f" --output_dir outputs/"
+        f" --sample_frac 1.0"
+        f" --epochs 10"
+        f" --batch_mlp 256"
+        f" --batch_lstm 64"
+        f" --seq_len 14"
+    )
 
     job = command(
-        code=".",                        # upload de hele projectmap
+        code=".",
         command=command_str,
         environment=env,
         compute=COMPUTE_NAME,
         display_name="m5-forecasting-run",
-        description="MLP + LSTM training op M5 Walmart data",
-        environment_variables={"BLOB_CONN_STR": blob_conn_str},
+        description="MLP + LSTM training op M5 mock data",
         experiment_name="m5-forecasting",
     )
 

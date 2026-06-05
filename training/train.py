@@ -91,7 +91,76 @@ def set_seeds(seed):
     except Exception:
         pass
 
+def generate_mock_data(data_dir):
+    print("\n── Mock data genereren ───────────────────────────────────────")
+    os.makedirs(data_dir, exist_ok=True)
+    
+    np.random.seed(42)
+    n_days = 100
+    n_items = 50
+    stores = ["CA_1", "CA_2", "TX_1"]
+    cats = ["FOODS", "HOBBIES", "HOUSEHOLD"]
 
+    # calendar.csv
+    dates = pd.date_range("2015-01-01", periods=n_days)
+    cal = pd.DataFrame({
+        "d": [f"d_{i+1}" for i in range(n_days)],
+        "date": dates,
+        "wm_yr_wk": [11101 + i // 7 for i in range(n_days)],
+        "wday": [(i % 7) + 1 for i in range(n_days)],
+        "month": dates.month,
+        "year": dates.year,
+        "event_name_1": np.where(np.random.rand(n_days) > 0.9, "Event", np.nan),
+        "snap_CA": np.random.randint(0, 2, n_days),
+        "snap_TX": np.random.randint(0, 2, n_days),
+        "snap_WI": np.random.randint(0, 2, n_days),
+    })
+    cal.to_csv(os.path.join(data_dir, "calendar.csv"), index=False)
+
+    # sales_train_validation.csv
+    rows = []
+    for store in stores:
+        state = store.split("_")[0]
+        for i in range(n_items):
+            cat = cats[i % 3]
+            dept = cat + "_1"
+            item_id = f"{dept}_{i+1:03d}"
+            row = {
+                "id": f"{item_id}_{store}_validation",
+                "item_id": item_id,
+                "dept_id": dept,
+                "cat_id": cat,
+                "store_id": store,
+                "state_id": state,
+            }
+            sales = np.random.poisson(3, n_days).tolist()
+            for j, s in enumerate(sales):
+                row[f"d_{j+1}"] = s
+            rows.append(row)
+    pd.DataFrame(rows).to_csv(
+        os.path.join(data_dir, "sales_train_validation.csv"), index=False
+    )
+
+    # sell_prices.csv
+    price_rows = []
+    for store in stores:
+        for i in range(n_items):
+            cat = cats[i % 3]
+            dept = cat + "_1"
+            item_id = f"{dept}_{i+1:03d}"
+            for wk in range(11101, 11101 + n_days // 7 + 1):
+                price_rows.append({
+                    "store_id": store,
+                    "item_id": item_id,
+                    "wm_yr_wk": wk,
+                    "sell_price": round(np.random.uniform(1, 20), 2),
+                })
+    pd.DataFrame(price_rows).to_csv(
+        os.path.join(data_dir, "sell_prices.csv"), index=False
+    )
+
+    print(f"Mock data gegenereerd in '{data_dir}'")
+    print(f"  {len(stores) * n_items} items  |  {n_days} dagen  |  {len(stores)} winkels")
 
 def load_data(data_dir):
     cal = pd.read_csv(os.path.join(data_dir, "calendar.csv"), parse_dates=["date"])
@@ -394,6 +463,8 @@ def main():
             container_name=args.blob_container,
             dest_dir=args.data_dir,
         )
+    else:
+        generate_mock_data(args.data_dir)
     cal, train_val, prices = load_data(args.data_dir)
 
     # 2. Features
