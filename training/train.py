@@ -264,7 +264,7 @@ FEATURES = (
 def split_and_scale(df):
     print("\n── Train/test split ──────────────────────────────────────────")
     df_clean    = df.dropna(subset=FEATURES + ["sales"]).copy()
-    cutoff_date = df_clean["date"].max() - pd.Timedelta(days=28 * 6)
+    cutoff_date = df_clean["date"].max() - pd.Timedelta(days=28)
     train_mask  = df_clean["date"] < cutoff_date
 
     X_train = df_clean.loc[train_mask,  FEATURES]
