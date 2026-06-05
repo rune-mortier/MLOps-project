@@ -24,9 +24,7 @@ except ImportError:
 CSV_FILES = [
     "calendar.csv",
     "sales_train_validation.csv",
-    "sales_train_evaluation.csv",
     "sell_prices.csv",
-    "sample_submission.csv",
 ]
 
 def download_data_from_blob(conn_str, container_name, dest_dir):
