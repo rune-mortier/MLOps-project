@@ -41,8 +41,11 @@ def download_data_from_blob(conn_str, container_name, dest_dir):
             continue
         print(f"  downloading {filename} ...", end=" ", flush=True)
         blob_client = container.get_blob_client(filename)
+        # Chunk-gewijze download — vermijdt grote RAM pieken
         with open(dest_path, "wb") as f:
-            f.write(blob_client.download_blob().readall())
+            stream = blob_client.download_blob()
+            for chunk in stream.chunks():
+                f.write(chunk)
         size_mb = os.path.getsize(dest_path) / 1_048_576
         print(f"{size_mb:.1f} MB")
     print("Download klaar.\n")
