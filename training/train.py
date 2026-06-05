@@ -167,10 +167,8 @@ def load_data(data_dir):
     
     # Alleen nodige kolommen inladen om RAM te sparen
     id_cols = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id"]
-    d_cols = [f"d_{i}" for i in range(1, 1914)]
     train_val = pd.read_csv(
         os.path.join(data_dir, "sales_train_validation.csv"),
-        usecols=id_cols + d_cols
     )
     
     prices = pd.read_csv(
