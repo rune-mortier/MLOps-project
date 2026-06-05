@@ -18,7 +18,7 @@ RESOURCE_GROUP  = "azure-ai"
 WORKSPACE_NAME  = "MLOps-project"
 
 COMPUTE_NAME    = "m5-cluster"
-COMPUTE_SIZE = "Standard_DS1_v2"
+COMPUTE_SIZE = "Standard_DS3_v2"
 MIN_NODES       = 0                   # schaalt terug naar 0 na gebruik = geen kosten
 MAX_NODES       = 2
 
