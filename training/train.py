@@ -94,12 +94,23 @@ def set_seeds(seed):
 
 
 def load_data(data_dir):
-    print("\n── Data inladen ──────────────────────────────────────────────")
-    cal       = pd.read_csv(os.path.join(data_dir, "calendar.csv"),            parse_dates=["date"])
-    train_val = pd.read_csv(os.path.join(data_dir, "sales_train_validation.csv"))
-    prices    = pd.read_csv(os.path.join(data_dir, "sell_prices.csv"))
+    cal = pd.read_csv(os.path.join(data_dir, "calendar.csv"), parse_dates=["date"])
+    
+    # Alleen nodige kolommen inladen om RAM te sparen
+    id_cols = ["id", "item_id", "dept_id", "cat_id", "store_id", "state_id"]
+    d_cols = [f"d_{i}" for i in range(1, 1914)]
+    train_val = pd.read_csv(
+        os.path.join(data_dir, "sales_train_validation.csv"),
+        usecols=id_cols + d_cols
+    )
+    
+    prices = pd.read_csv(
+        os.path.join(data_dir, "sell_prices.csv"),
+        usecols=["store_id", "item_id", "wm_yr_wk", "sell_price"],
+        dtype={"sell_price": "float32"}
+    )
 
-    print(f"Calendar : {cal.shape}  |  {cal.date.min().date()} → {cal.date.max().date()}")
+    print(f"Calendar : {cal.shape}")
     print(f"Train    : {train_val.shape}")
     print(f"Prices   : {prices.shape}")
     return cal, train_val, prices
