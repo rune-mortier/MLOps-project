@@ -17,8 +17,8 @@ SUBSCRIPTION_ID = "91a4d59e-f70a-4dfe-b8c0-38b9bef510a6"
 RESOURCE_GROUP  = "azure-ai"
 WORKSPACE_NAME  = "MLOps-project"
 
-COMPUTE_NAME    = "m5-cluster"
-COMPUTE_SIZE = "Standard_DS3_v2"
+COMPUTE_NAME = "m5-cluster-v3"
+COMPUTE_SIZE = "Standard_D4s_v3"
 MIN_NODES       = 0                   # schaalt terug naar 0 na gebruik = geen kosten
 MAX_NODES       = 2
 
