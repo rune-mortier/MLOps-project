@@ -110,7 +110,7 @@ def generate_mock_data(data_dir):
         "wday": [(i % 7) + 1 for i in range(n_days)],
         "month": dates.month,
         "year": dates.year,
-        "event_name_1": np.where(np.random.rand(n_days) > 0.9, "Event", np.nan),
+        "event_name_1": np.where(np.random.rand(n_days) > 0.9, "Event", None),
         "snap_CA": np.random.randint(0, 2, n_days),
         "snap_TX": np.random.randint(0, 2, n_days),
         "snap_WI": np.random.randint(0, 2, n_days),
