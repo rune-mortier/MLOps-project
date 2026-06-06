@@ -8,11 +8,24 @@ MODEL_DIR = os.environ.get("MODEL_DIR", "/models")
 
 CATEGORY_AVG_PRICE = {"FOODS": 5.5, "HOBBIES": 10.5, "HOUSEHOLD": 10.5}
 
-# Label encodings must match the order produced by train.py's LabelEncoder
 CATEGORY_MAP = {"FOODS": 0, "HOBBIES": 1, "HOUSEHOLD": 2}
 STORE_MAP    = {"CA_1": 0, "CA_2": 1, "TX_1": 2}
 STATE_MAP    = {"CA": 0, "TX": 1}
 DEPT_MAP     = {"FOODS_1": 0, "HOBBIES_1": 1, "HOUSEHOLD_1": 2}
+
+# Items per category from mock data generator (i%3 determines category)
+# FOODS: i=0,3,6,...,48  → FOODS_1_001, FOODS_1_004, ..., FOODS_1_049
+# HOBBIES: i=1,4,7,...,49 → HOBBIES_1_002, HOBBIES_1_005, ..., HOBBIES_1_050
+# HOUSEHOLD: i=2,5,8,...,47 → HOUSEHOLD_1_003, HOUSEHOLD_1_006, ..., HOUSEHOLD_1_048
+ITEMS_BY_CATEGORY = {
+    "FOODS":     sorted([f"FOODS_1_{i+1:03d}"     for i in range(50) if i % 3 == 0]),
+    "HOBBIES":   sorted([f"HOBBIES_1_{i+1:03d}"   for i in range(50) if i % 3 == 1]),
+    "HOUSEHOLD": sorted([f"HOUSEHOLD_1_{i+1:03d}" for i in range(50) if i % 3 == 2]),
+}
+
+# Global sorted item list — matches LabelEncoder.fit_transform order from train.py
+_all_items = sorted(item for items in ITEMS_BY_CATEGORY.values() for item in items)
+ITEM_MAP = {item: idx for idx, item in enumerate(_all_items)}
 
 _model  = None
 _scaler = None
@@ -29,7 +42,7 @@ def load_model():
     return _model, _scaler
 
 
-def build_feature_vector(category: str, store: str, month: int) -> np.ndarray:
+def build_feature_vector(category: str, store: str, month: int, item_id: str) -> np.ndarray:
     """Build the 18-feature vector expected by the trained MLP.
 
     Feature order matches FEATURES list in training/train.py:
@@ -44,7 +57,7 @@ def build_feature_vector(category: str, store: str, month: int) -> np.ndarray:
         DEPT_MAP.get(dept, 0),
         STORE_MAP.get(store, 0),
         STATE_MAP.get(state, 0),
-        0,                                       # item_id — representative first item
+        ITEM_MAP.get(item_id, 0),
         3,                                       # wday — midweek
         month,
         2024,                                    # year
@@ -58,9 +71,9 @@ def build_feature_vector(category: str, store: str, month: int) -> np.ndarray:
     return np.array(features, dtype=np.float32).reshape(1, -1)
 
 
-def predict(category: str, store: str, month: int, pct_change: float) -> dict:
+def predict(category: str, store: str, month: int, pct_change: float, item_id: str) -> dict:
     model, scaler = load_model()
-    features        = build_feature_vector(category, store, month)
+    features        = build_feature_vector(category, store, month, item_id)
     features_scaled = scaler.transform(features)
 
     baseline_qty = float(np.maximum(0, model.predict(features_scaled, verbose=0).flatten()[0]))
@@ -71,4 +84,6 @@ def predict(category: str, store: str, month: int, pct_change: float) -> dict:
         "baseline_revenue": round(baseline_qty * price, 2),
         "scenario_revenue": round(scenario_qty * price, 2),
         "delta":            round((scenario_qty - baseline_qty) * price, 2),
+        "baseline_qty":     round(baseline_qty, 2),
+        "scenario_qty":     round(scenario_qty, 2),
     }

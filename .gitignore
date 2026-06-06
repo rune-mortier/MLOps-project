@@ -21,3 +21,6 @@ venv/
 # Azure ML
 .azureml/
 azureml-logs/
+
+node_modules/
+frontend/dist/
