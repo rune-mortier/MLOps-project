@@ -1,0 +1,11 @@
+api:
+  image:
+    repository: m5-api
+    tag: local
+    pullPolicy: Never
+
+frontend:
+  image:
+    repository: m5-frontend
+    tag: local
+    pullPolicy: Never
