@@ -7,12 +7,15 @@ class PredictRequest(BaseModel):
     store: str
     month: int
     pct_change: float
+    item_id: str
 
 
 class PredictResponse(BaseModel):
     baseline_revenue: float
     scenario_revenue: float
     delta: float
+    baseline_qty: float
+    scenario_qty: float
 
 
 class ScenarioRecord(BaseModel):
@@ -22,8 +25,11 @@ class ScenarioRecord(BaseModel):
     store: str
     month: int
     pct_change: float
+    item_id: str
     baseline_revenue: float
     scenario_revenue: float
     delta: float
+    baseline_qty: float
+    scenario_qty: float
 
     model_config = {"from_attributes": True}

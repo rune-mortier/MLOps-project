@@ -1,0 +1,6 @@
+image: postgres:16
+storage: 1Gi
+
+service:
+  type: ClusterIP
+  port: 5432

@@ -1,0 +1,10 @@
+{{- if eq .Values.controller "traefik" }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ .Release.Name }}-headers
+spec:
+  headers:
+    customResponseHeaders:
+      X-Powered-By: "m5-forecast"
+{{- end }}

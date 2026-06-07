@@ -1,0 +1,36 @@
+global:
+  dbUser: m5user
+  dbPassword: m5pass
+  dbName: m5db
+
+ingress:
+  controller: nginx
+  host: m5.local
+
+api:
+  image:
+    repository: ghcr.io/REPLACE_WITH_YOUR_GITHUB_USERNAME/m5-api
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  modelDir: /models
+  service:
+    type: ClusterIP
+    port: 8000
+
+frontend:
+  image:
+    repository: ghcr.io/REPLACE_WITH_YOUR_GITHUB_USERNAME/m5-frontend
+    tag: latest
+    pullPolicy: Always
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 80
+
+database:
+  image: postgres:16
+  storage: 1Gi
+  service:
+    type: ClusterIP
+    port: 5432

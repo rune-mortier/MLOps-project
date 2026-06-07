@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from database import get_db
-from inference import predict as run_predict
+from inference import ITEMS_BY_CATEGORY, predict as run_predict
 from models.scenario import Scenario
 from schemas.scenario import PredictRequest, PredictResponse, ScenarioRecord
 
@@ -19,6 +19,13 @@ def health():
     return {"status": "ok"}
 
 
+@router.get("/items/{category}")
+def get_items(category: str):
+    if category not in VALID_CATEGORIES:
+        raise HTTPException(422, f"category must be one of {VALID_CATEGORIES}")
+    return ITEMS_BY_CATEGORY[category]
+
+
 @router.post("/predict", response_model=PredictResponse)
 def predict(req: PredictRequest, db: Session = Depends(get_db)):
     if req.category not in VALID_CATEGORIES:
@@ -29,17 +36,23 @@ def predict(req: PredictRequest, db: Session = Depends(get_db)):
         raise HTTPException(422, "month must be between 1 and 12")
     if not -50 <= req.pct_change <= 100:
         raise HTTPException(422, "pct_change must be between -50 and 100")
+    valid_items = ITEMS_BY_CATEGORY.get(req.category, [])
+    if req.item_id not in valid_items:
+        raise HTTPException(422, f"item_id not valid for category {req.category}")
 
-    result = run_predict(req.category, req.store, req.month, req.pct_change)
+    result = run_predict(req.category, req.store, req.month, req.pct_change, req.item_id)
 
     db.add(Scenario(
         category=req.category,
         store=req.store,
         month=req.month,
         pct_change=req.pct_change,
+        item_id=req.item_id,
         baseline_revenue=result["baseline_revenue"],
         scenario_revenue=result["scenario_revenue"],
         delta=result["delta"],
+        baseline_qty=result["baseline_qty"],
+        scenario_qty=result["scenario_qty"],
     ))
     db.commit()
 
