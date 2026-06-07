@@ -36,9 +36,6 @@ spec:
               value: {{ .Values.modelDir | quote }}
             - name: DATABASE_URL
               value: "postgresql://{{ .Values.global.dbUser }}:{{ .Values.global.dbPassword }}@{{ .Release.Name }}-database:5432/{{ .Values.global.dbName }}"
-          volumeMounts:
-            - name: models
-              mountPath: {{ .Values.modelDir }}
           livenessProbe:
             httpGet:
               path: /api/health
@@ -51,8 +48,7 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 5
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+          resources: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -65,7 +61,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      volumes:
-        - name: models
-          persistentVolumeClaim:
-            claimName: {{ include "api.fullname" . }}-models
