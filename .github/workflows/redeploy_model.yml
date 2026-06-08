@@ -9,11 +9,13 @@ on:
         required: false
 
 env:
-  REGISTRY:   ghcr.io
-  IMAGE_API:  ghcr.io/${{ github.repository_owner }}/m5-api
+  REGISTRY: ghcr.io
+  IMAGE_API: ghcr.io/${{ github.repository_owner }}/m5-api
   HELM_RELEASE: m5
-  HELM_CHART:   ./helm/m5-forecast
-  NAMESPACE:    default
+  HELM_CHART: ./helm/m5-forecast
+  NAMESPACE: default
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONIOENCODING: utf-8
 
 jobs:
   build-and-deploy:
@@ -22,25 +24,11 @@ jobs:
 
     permissions:
       contents: read
-      packages: write     # nodig voor ghcr.io push
+      packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Download model artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: trained-models
-          path: outputs/
-        continue-on-error: true   
-      - name: Check model files
-        shell: cmd
-        run: |
-          if not exist outputs\mlp_model.keras (echo ERROR: mlp_model.keras niet gevonden & exit 1)
-          if not exist outputs\lstm_model.keras (echo ERROR: lstm_model.keras niet gevonden & exit 1)
-          if not exist outputs\scaler.pkl (echo ERROR: scaler.pkl niet gevonden & exit 1)
-          echo Alle modelbestanden aanwezig.
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -68,21 +56,8 @@ jobs:
 
       - name: Helm upgrade (model redeploy)
         shell: cmd
-        run: |
-          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1 | cut -d: -f2)
-          helm upgrade ${{ env.HELM_RELEASE }} ${{ env.HELM_CHART }} \
-            --namespace ${{ env.NAMESPACE }} \
-            --reuse-values \
-            --set api.image.repository=${{ env.IMAGE_API }} \
-            --set api.image.tag=${IMAGE_TAG} \
-            --set api.image.pullPolicy=Always \
-            --wait \
-            --timeout 5m
+        run: helm upgrade %HELM_RELEASE% %HELM_CHART% --namespace %NAMESPACE% --reuse-values --set api.image.repository=%IMAGE_API% --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
 
       - name: Verify rollout
         shell: cmd
-        run: |
-          kubectl rollout status deployment/${{ env.HELM_RELEASE }}-api \
-            --namespace ${{ env.NAMESPACE }} \
-            --timeout=120s
-          echo "✅ Model succesvol gedeployed."
+        run: kubectl rollout status deployment/%HELM_RELEASE%-api --namespace %NAMESPACE% --timeout=120s
