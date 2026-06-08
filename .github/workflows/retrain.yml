@@ -11,6 +11,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONIOENCODING: utf-8
 
 jobs:
   retrain:
@@ -32,6 +33,55 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           BLOB_CONN_STR: ${{ secrets.BLOB_CONN_STR }}
-          PYTHONIOENCODING: utf-8
+        run: C:\Users\rumoo\miniconda3\python.exe submit_job.py
+
+      - name: Copy model artifacts from Azure ML output
+        shell: cmd
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         run: |
-          C:\Users\rumoo\miniconda3\python.exe submit_job.py
+          C:\Users\rumoo\miniconda3\python.exe -c "
+          import os, shutil, pathlib
+          from azure.ai.ml import MLClient
+          from azure.identity import ClientSecretCredential
+
+          cred = ClientSecretCredential(
+              tenant_id=os.environ['AZURE_TENANT_ID'],
+              client_id=os.environ['AZURE_CLIENT_ID'],
+              client_secret=os.environ['AZURE_CLIENT_SECRET'],
+          )
+          ml = MLClient(cred, os.environ['AZURE_SUBSCRIPTION_ID'], 'azure-ai', 'MLOps-project')
+          jobs = list(ml.jobs.list())
+          job = next(j for j in jobs if (j.experiment_name or '') == 'm5-forecasting')
+          print('Downloading from job:', job.name)
+          ml.jobs.download(name=job.name, download_path='.', output_name='default')
+          src = pathlib.Path('named-outputs/default')
+          if src.exists():
+              shutil.copytree(src, 'outputs', dirs_exist_ok=True)
+              print('Artifacts gekopieerd naar outputs/')
+          "
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: |
+            outputs/mlp_model.keras
+            outputs/lstm_model.keras
+            outputs/scaler.pkl
+          retention-days: 7
+
+      - name: Trigger redeploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              workflow_id: 'redeploy_model.yml',
+              ref: 'main',
+              inputs: { triggered_by: 'retrain' }
+            })
