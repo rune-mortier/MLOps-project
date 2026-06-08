@@ -21,12 +21,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-
       - name: Install Azure ML SDK
         run: pip install azure-ai-ml azure-identity --quiet
 
