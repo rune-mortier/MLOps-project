@@ -1,0 +1,102 @@
+name: "3.1 · Retrain model on Azure ML"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "training/**"
+      - "environment.yml"
+      - "submit_job.py"
+  workflow_dispatch:   # ook handmatig te starten vanuit GitHub UI
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  retrain:
+    name: Submit Azure ML training job
+    runs-on: self-hosted          # lokale runner op jouw machine
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install Azure ML SDK
+        run: pip install azure-ai-ml azure-identity --quiet
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Submit training job and wait for completion
+        env:
+          BLOB_CONN_STR: ${{ secrets.BLOB_CONN_STR }}
+        run: |
+          python submit_job.py \
+            --sample_frac 1.0 \
+            --epochs 10 \
+            --batch_mlp 256 \
+            --batch_lstm 64 \
+            --seq_len 14
+
+      - name: Download model artifacts from Azure ML
+        env:
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          AZURE_RESOURCE_GROUP: azure-ai
+          AZURE_ML_WORKSPACE: MLOps-project
+        run: |
+          python - <<'EOF'
+          import os, glob
+          from azure.ai.ml import MLClient
+          from azure.identity import DefaultAzureCredential
+
+          ml = MLClient(
+              DefaultAzureCredential(),
+              os.environ["AZURE_SUBSCRIPTION_ID"],
+              os.environ["AZURE_RESOURCE_GROUP"],
+              os.environ["AZURE_ML_WORKSPACE"],
+          )
+
+          # Meest recente job in experiment m5-forecasting ophalen
+          jobs = list(ml.jobs.list(parent_job_name=None))
+          job  = next(j for j in jobs if (j.experiment_name or "") == "m5-forecasting")
+          print(f"Downloading artifacts from job: {job.name}")
+
+          ml.jobs.download(name=job.name, download_path=".", output_name="default")
+
+          # Azure ML zet outputs in named-outputs/default/ — verplaats naar outputs/
+          import shutil, pathlib
+          src = pathlib.Path("named-outputs/default")
+          if src.exists():
+              shutil.copytree(src, "outputs", dirs_exist_ok=True)
+              print("Artifacts gekopieerd naar outputs/")
+          EOF
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models
+          path: |
+            outputs/mlp_model.keras
+            outputs/lstm_model.keras
+            outputs/scaler.pkl
+          retention-days: 7
+
+      - name: Trigger redeploy workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              workflow_id: '2_redeploy_model.yml',
+              ref: 'main',
+              inputs: { triggered_by: 'retrain' }
+            })

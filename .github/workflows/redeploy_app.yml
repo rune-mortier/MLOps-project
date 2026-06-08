@@ -1,0 +1,192 @@
+name: "3.3 · Redeploy frontend / api / config"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Frontend broncode of config
+      - "frontend/**"
+      # API broncode (maar NIET training/) 
+      - "api/**"
+      # Helm charts / values
+      - "helm/**"
+      # Deze workflow zelf
+      - ".github/workflows/3_redeploy_app.yml"
+
+env:
+  REGISTRY:      ghcr.io
+  IMAGE_API:     ghcr.io/${{ github.repository_owner }}/m5-api
+  IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/m5-frontend
+  HELM_RELEASE:  m5
+  HELM_CHART:    ./helm/m5-forecast
+  NAMESPACE:     default
+
+jobs:
+  changes:
+    name: Detect changed components
+    runs-on: self-hosted
+    outputs:
+      api:      ${{ steps.filter.outputs.api }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      helm:     ${{ steps.filter.outputs.helm }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            api:
+              - 'api/**'
+            frontend:
+              - 'frontend/**'
+            helm:
+              - 'helm/**'
+
+  build-api:
+    name: Build & push API image
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download latest model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models
+          path: outputs/
+        continue-on-error: true
+
+      - name: Fallback — check model files
+        run: |
+          for f in outputs/mlp_model.keras outputs/lstm_model.keras outputs/scaler.pkl; do
+            [ -f "$f" ] || { echo "❌ $f ontbreekt. Run eerst workflow 1 (retrain)."; exit 1; }
+          done
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  build-frontend:
+    name: Build & push frontend image
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_FRONTEND }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+  deploy:
+    name: Helm upgrade
+    needs: [changes, build-api, build-frontend]
+    # Draai altijd als minstens één component gewijzigd is
+    if: |
+      always() &&
+      (needs.changes.outputs.api == 'true' ||
+       needs.changes.outputs.frontend == 'true' ||
+       needs.changes.outputs.helm == 'true')
+    runs-on: self-hosted
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image tags
+        id: tags
+        run: |
+          # SHA van deze commit (kort formaat, zoals docker/metadata-action het doet)
+          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+
+      - name: Helm upgrade
+        run: |
+          SHA=${{ steps.tags.outputs.sha }}
+          EXTRA_ARGS=""
+
+          if [ "${{ needs.changes.outputs.api }}" = "true" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --set api.image.repository=${{ env.IMAGE_API }}"
+            EXTRA_ARGS="$EXTRA_ARGS --set api.image.tag=${SHA}"
+            EXTRA_ARGS="$EXTRA_ARGS --set api.image.pullPolicy=Always"
+          fi
+
+          if [ "${{ needs.changes.outputs.frontend }}" = "true" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.repository=${{ env.IMAGE_FRONTEND }}"
+            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.tag=${SHA}"
+            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.pullPolicy=Always"
+          fi
+
+          helm upgrade ${{ env.HELM_RELEASE }} ${{ env.HELM_CHART }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --values helm/m5-forecast/values.yaml \
+            --values helm/m5-forecast/values-local.yaml \
+            --reuse-values \
+            $EXTRA_ARGS \
+            --wait \
+            --timeout 5m
+
+      - name: Verify rollout
+        run: |
+          if [ "${{ needs.changes.outputs.api }}" = "true" ]; then
+            kubectl rollout status deployment/${{ env.HELM_RELEASE }}-api \
+              --namespace ${{ env.NAMESPACE }} --timeout=120s
+          fi
+          if [ "${{ needs.changes.outputs.frontend }}" = "true" ]; then
+            kubectl rollout status deployment/${{ env.HELM_RELEASE }}-frontend \
+              --namespace ${{ env.NAMESPACE }} --timeout=120s
+          fi
+          echo "✅ Deployment succesvol."

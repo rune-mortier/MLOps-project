@@ -1,0 +1,89 @@
+name: "3.2 · Redeploy model to cluster"
+
+on:
+  workflow_dispatch:
+    inputs:
+      triggered_by:
+        description: "Wie heeft deze workflow getriggerd?"
+        default: "manual"
+        required: false
+
+env:
+  REGISTRY:   ghcr.io
+  IMAGE_API:  ghcr.io/${{ github.repository_owner }}/m5-api
+  HELM_RELEASE: m5
+  HELM_CHART:   ./helm/m5-forecast
+  NAMESPACE:    default
+
+jobs:
+  build-and-deploy:
+    name: Build API image + Helm upgrade
+    runs-on: self-hosted
+
+    permissions:
+      contents: read
+      packages: write     # nodig voor ghcr.io push
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models
+          path: outputs/
+        continue-on-error: true   
+      - name: Check model files
+        run: |
+          for f in outputs/mlp_model.keras outputs/lstm_model.keras outputs/scaler.pkl; do
+            if [ ! -f "$f" ]; then
+              echo "⚠️  $f niet gevonden — Dockerfile COPY zal falen."
+              echo "   Zorg dat de retrain-workflow eerst is uitgevoerd."
+              exit 1
+            fi
+          done
+          echo "✅ Alle modelbestanden aanwezig."
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_API }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Helm upgrade (model redeploy)
+        run: |
+          IMAGE_TAG=$(echo "${{ steps.meta.outputs.tags }}" | head -1 | cut -d: -f2)
+          helm upgrade ${{ env.HELM_RELEASE }} ${{ env.HELM_CHART }} \
+            --namespace ${{ env.NAMESPACE }} \
+            --reuse-values \
+            --set api.image.repository=${{ env.IMAGE_API }} \
+            --set api.image.tag=${IMAGE_TAG} \
+            --set api.image.pullPolicy=Always \
+            --wait \
+            --timeout 5m
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/${{ env.HELM_RELEASE }}-api \
+            --namespace ${{ env.NAMESPACE }} \
+            --timeout=120s
+          echo "✅ Model succesvol gedeployed."
