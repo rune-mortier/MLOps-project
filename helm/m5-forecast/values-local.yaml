@@ -1,11 +1,11 @@
 api:
   image:
-    repository: m5-api
-    tag: local
-    pullPolicy: Never
+    repository: ghcr.io/rune-mortier/m5-api
+    tag: latest
+    pullPolicy: Always
 
 frontend:
   image:
-    repository: m5-frontend
-    tag: local
-    pullPolicy: Never
+    repository: ghcr.io/rune-mortier/m5-frontend
+    tag: latest
+    pullPolicy: Always
