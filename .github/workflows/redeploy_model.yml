@@ -57,8 +57,12 @@ jobs:
 
       - name: Helm upgrade (model redeploy)
         shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
         run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace default --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
 
       - name: Verify rollout
         shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
         run: kubectl rollout status deployment/m5-api --namespace default --timeout=120s
