@@ -23,7 +23,7 @@ jobs:
 
       - name: Install Azure ML SDK
         shell: cmd
-        run: pip install azure-ai-ml azure-identity --quiet
+        run: C:\Users\rumoo\miniconda3\Scripts\pip.exe install azure-ai-ml azure-identity --quiet
 
       - name: Submit training job
         shell: cmd
@@ -33,4 +33,4 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           BLOB_CONN_STR: ${{ secrets.BLOB_CONN_STR }}
         run: |
-          python submit_job.py
+          C:\Users\rumoo\miniconda3\python.exe submit_job.py
