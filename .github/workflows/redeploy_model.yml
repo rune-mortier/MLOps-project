@@ -59,7 +59,8 @@ jobs:
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 C:\actions-runner\_work\MLOps-project\MLOps-project\helm\m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always
+      
       - name: Verify rollout
         shell: cmd
         env:
