@@ -124,21 +124,21 @@ jobs:
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 10m
  
       - name: Helm upgrade frontend
         if: needs.changes.outputs.frontend == 'true'
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set frontend.image.repository=ghcr.io/rune-mortier/m5-frontend --set frontend.image.tag=latest --set frontend.image.pullPolicy=Always --wait --timeout 5m
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set frontend.image.repository=ghcr.io/rune-mortier/m5-frontend --set frontend.image.tag=latest --set frontend.image.pullPolicy=Always --wait --timeout 10m
  
       - name: Helm upgrade config only
         if: needs.changes.outputs.helm == 'true' && needs.changes.outputs.api != 'true' && needs.changes.outputs.frontend != 'true'
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --wait --timeout 5m
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --wait --timeout 10m
  
       - name: Verify API rollout
         if: needs.changes.outputs.api == 'true'
