@@ -53,12 +53,12 @@ jobs:
           file: ./api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ steps.meta.outputs.labels }}    
 
       - name: Helm upgrade (model redeploy)
         shell: cmd
-        run: helm upgrade %HELM_RELEASE% %HELM_CHART% --namespace %NAMESPACE% --reuse-values --set api.image.repository=%IMAGE_API% --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace default --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
 
       - name: Verify rollout
         shell: cmd
-        run: kubectl rollout status deployment/%HELM_RELEASE%-api --namespace %NAMESPACE% --timeout=120s
+        run: kubectl rollout status deployment/m5-api --namespace default --timeout=120s
