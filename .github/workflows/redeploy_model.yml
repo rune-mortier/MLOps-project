@@ -9,11 +9,6 @@ on:
         required: false
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_API: ghcr.io/${{ github.repository_owner }}/m5-api
-  HELM_RELEASE: m5
-  HELM_CHART: ./helm/m5-forecast
-  NAMESPACE: default
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   PYTHONIOENCODING: utf-8
 
@@ -33,7 +28,7 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -41,7 +36,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_API }}
+          images: ghcr.io/rune-mortier/m5-api
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest
@@ -53,16 +48,16 @@ jobs:
           file: ./api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}    
+          labels: ${{ steps.meta.outputs.labels }}
 
       - name: Helm upgrade (model redeploy)
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace default --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
 
       - name: Verify rollout
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: kubectl rollout status deployment/m5-api --namespace default --timeout=120s
+        run: C:\Users\rumoo\kubectl\kubectl.exe rollout status deployment/m5-api --namespace ingress --timeout=120s

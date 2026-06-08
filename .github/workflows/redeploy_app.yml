@@ -1,26 +1,18 @@
 name: "3.3 · Redeploy frontend / api / config"
-
+ 
 on:
   push:
     branches: [main]
     paths:
-      # Frontend broncode of config
       - "frontend/**"
-      # API broncode (maar NIET training/) 
       - "api/**"
-      # Helm charts / values
       - "helm/**"
-      # Deze workflow zelf
-      - ".github/workflows/3_redeploy_app.yml"
-
+      - ".github/workflows/redeploy_app.yml"
+ 
 env:
-  REGISTRY:      ghcr.io
-  IMAGE_API:     ghcr.io/${{ github.repository_owner }}/m5-api
-  IMAGE_FRONTEND: ghcr.io/${{ github.repository_owner }}/m5-frontend
-  HELM_RELEASE:  m5
-  HELM_CHART:    ./helm/m5-forecast
-  NAMESPACE:     default
-
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  PYTHONIOENCODING: utf-8
+ 
 jobs:
   changes:
     name: Detect changed components
@@ -50,46 +42,31 @@ jobs:
     permissions:
       contents: read
       packages: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-
+ 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Download latest model artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: trained-models
-          path: outputs/
-        continue-on-error: true
-
-      - name: Fallback — check model files
-        run: |
-          for f in outputs/mlp_model.keras outputs/lstm_model.keras outputs/scaler.pkl; do
-            [ -f "$f" ] || { echo "❌ $f ontbreekt. Run eerst workflow 1 (retrain)."; exit 1; }
-          done
-
+ 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+ 
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_API }}
+          images: ghcr.io/rune-mortier/m5-api
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest
-
+ 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./api
+          context: .
+          file: ./api/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -102,29 +79,26 @@ jobs:
     permissions:
       contents: read
       packages: write
-
-    outputs:
-      image_tag: ${{ steps.meta.outputs.version }}
-
+ 
     steps:
       - uses: actions/checkout@v4
-
+ 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
+ 
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_FRONTEND }}
+          images: ghcr.io/rune-mortier/m5-frontend
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest
-
+ 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -135,58 +109,47 @@ jobs:
   deploy:
     name: Helm upgrade
     needs: [changes, build-api, build-frontend]
-    # Draai altijd als minstens één component gewijzigd is
     if: |
       always() &&
       (needs.changes.outputs.api == 'true' ||
        needs.changes.outputs.frontend == 'true' ||
        needs.changes.outputs.helm == 'true')
     runs-on: self-hosted
-
+ 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Resolve image tags
-        id: tags
-        run: |
-          # SHA van deze commit (kort formaat, zoals docker/metadata-action het doet)
-          SHA=$(echo "${{ github.sha }}" | cut -c1-7)
-          echo "sha=${SHA}" >> $GITHUB_OUTPUT
-
-      - name: Helm upgrade
-        run: |
-          SHA=${{ steps.tags.outputs.sha }}
-          EXTRA_ARGS=""
-
-          if [ "${{ needs.changes.outputs.api }}" = "true" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --set api.image.repository=${{ env.IMAGE_API }}"
-            EXTRA_ARGS="$EXTRA_ARGS --set api.image.tag=${SHA}"
-            EXTRA_ARGS="$EXTRA_ARGS --set api.image.pullPolicy=Always"
-          fi
-
-          if [ "${{ needs.changes.outputs.frontend }}" = "true" ]; then
-            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.repository=${{ env.IMAGE_FRONTEND }}"
-            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.tag=${SHA}"
-            EXTRA_ARGS="$EXTRA_ARGS --set frontend.image.pullPolicy=Always"
-          fi
-
-          helm upgrade ${{ env.HELM_RELEASE }} ${{ env.HELM_CHART }} \
-            --namespace ${{ env.NAMESPACE }} \
-            --values helm/m5-forecast/values.yaml \
-            --values helm/m5-forecast/values-local.yaml \
-            --reuse-values \
-            $EXTRA_ARGS \
-            --wait \
-            --timeout 5m
-
-      - name: Verify rollout
-        run: |
-          if [ "${{ needs.changes.outputs.api }}" = "true" ]; then
-            kubectl rollout status deployment/${{ env.HELM_RELEASE }}-api \
-              --namespace ${{ env.NAMESPACE }} --timeout=120s
-          fi
-          if [ "${{ needs.changes.outputs.frontend }}" = "true" ]; then
-            kubectl rollout status deployment/${{ env.HELM_RELEASE }}-frontend \
-              --namespace ${{ env.NAMESPACE }} --timeout=120s
-          fi
-          echo "✅ Deployment succesvol."
+ 
+      - name: Helm upgrade API
+        if: needs.changes.outputs.api == 'true'
+        shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 5m
+ 
+      - name: Helm upgrade frontend
+        if: needs.changes.outputs.frontend == 'true'
+        shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set frontend.image.repository=ghcr.io/rune-mortier/m5-frontend --set frontend.image.tag=latest --set frontend.image.pullPolicy=Always --wait --timeout 5m
+ 
+      - name: Helm upgrade config only
+        if: needs.changes.outputs.helm == 'true' && needs.changes.outputs.api != 'true' && needs.changes.outputs.frontend != 'true'
+        shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --wait --timeout 5m
+ 
+      - name: Verify API rollout
+        if: needs.changes.outputs.api == 'true'
+        shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
+        run: C:\Users\rumoo\kubectl\kubectl.exe rollout status deployment/m5-api --namespace ingress --timeout=120s
+ 
+      - name: Verify frontend rollout
+        if: needs.changes.outputs.frontend == 'true'
+        shell: cmd
+        env:
+          KUBECONFIG: C:\actions-runner\kubeconfig.yml
+        run: C:\Users\rumoo\kubectl\kubectl.exe rollout status deployment/m5-frontend --namespace ingress --timeout=120s
