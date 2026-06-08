@@ -50,12 +50,16 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - name: Get image tag
+        id: tag
+        shell: cmd
+        run: echo image_tag=latest >> %GITHUB_OUTPUT%
+
       - name: Helm upgrade (model redeploy)
         shell: cmd
         env:
           KUBECONFIG: C:\actions-runner\kubeconfig.yml
-        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always --wait --timeout 10m
-
+        run: C:\Users\rumoo\kubectl\helm.exe upgrade m5 ./helm/m5-forecast --namespace ingress --reuse-values --set api.image.repository=ghcr.io/rune-mortier/m5-api --set api.image.tag=latest --set api.image.pullPolicy=Always
       - name: Verify rollout
         shell: cmd
         env:
