@@ -65,5 +65,8 @@ jobs:
               repo:  context.repo.repo,
               workflow_id: 'redeploy_model.yml',
               ref: 'main',
-              inputs: { triggered_by: 'retrain' }
+              inputs: {
+                triggered_by: 'retrain',
+                artifact_run_id: context.runId.toString()
+              }
             })

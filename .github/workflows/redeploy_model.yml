@@ -7,6 +7,10 @@ on:
         description: "Wie heeft deze workflow getriggerd?"
         default: "manual"
         required: false
+      artifact_run_id:
+        description: "Run ID with trained model artifacts"
+        required: false
+        default: ""
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -40,6 +44,14 @@ jobs:
           tags: |
             type=sha,prefix=,format=short
             type=raw,value=latest
+      
+      - name: Download model artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: trained-models  
+          path: outputs/
+          run-id: ${{ inputs.artifact_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push API image
         uses: docker/build-push-action@v5
